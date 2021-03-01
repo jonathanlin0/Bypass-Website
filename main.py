@@ -26,6 +26,7 @@ def bypass(query,query2):
     while bypassed == False and times_tried < 2:
         times_tried = times_tried + 1
 
+        proxy_removed = False
         try:
             f = open('proxies.txt','r')
             proxies = f.read().splitlines()
@@ -50,8 +51,24 @@ def bypass(query,query2):
                     break
                 except requests.exceptions.ProxyError:
                     print('Proxy error')
+                    proxies.remove(proxy)
+                    proxy_removed = True
                 except requests.exceptions.ConnectTimeout:
                     print('Connect error')
+                    proxies.remove(proxy)
+                    proxy_removed = True
+
+            if proxy_removed == True:
+                out = ''
+
+                last = proxies[len(proxies)-1]
+                proxies.remove(last)
+                for temp in proxies:
+                    out = out + temp + '\n'
+                out = out + last
+                f = open('proxies.txt','w')
+                f.write(out)
+                f.close()
                 
             first_link = 'https://publisher.linkvertise.com/api/v1/redirect/link/static/'
 
