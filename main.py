@@ -64,8 +64,8 @@ def bypass(query,query2):
                     print('Timeout error')
                     proxies.remove(proxy)
                     proxy_removed = True
-                except:
-                    print('Unknown error')
+                except Exception as e:
+                    print(e)
                     proxies.remove(proxy)
                     proxy_removed = True
 
