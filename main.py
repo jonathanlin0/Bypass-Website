@@ -22,7 +22,7 @@ def bypass(query,query2):
     times_tried = -1
 
     input_link = query + '/' + query2
-    while bypassed == False and times_tried < 3:
+    while bypassed == False and times_tried < 2:
         times_tried = times_tried + 1
 
         try:
