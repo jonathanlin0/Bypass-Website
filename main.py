@@ -22,6 +22,7 @@ def bypass(query,query2):
     times_tried = -1
 
     input_link = query + '/' + query2
+    new_link = "None"
     while bypassed == False and times_tried < 2:
         times_tried = times_tried + 1
 
@@ -45,7 +46,7 @@ def bypass(query,query2):
                         "ftp"   : ftp_proxy
                     }
 
-                    response = requests.get('https://www.google.com/', proxies = proxy_dict)
+                    response = requests.get('https://www.google.com/', proxies = proxy_dict,timeout = 2)
                     break
                 except requests.exceptions.ProxyError:
                     print('Proxy error')
@@ -58,20 +59,7 @@ def bypass(query,query2):
             second_link_front = second_link[0:second_link.find('insert/linkvertise')]
             second_link_back = second_link[second_link.find('/target?serial'):second_link.find('base64encodedjson')]
 
-            
 
-            """
-            if '.com/' in input_link:
-                if '?o=' in input_link:
-                    link = input_link[input_link.find('.com/')+5:input_link.find('?o=')]
-                else:
-                    link = input_link[input_link.find('.com/')+5:len(input_link)]
-            if '.net/' in input_link:
-                if '?o=' in input_link:
-                    link = input_link[input_link.find('.net/')+5:input_link.find('?o=')]
-                else:
-                    link = input_link[input_link.find('.net/')+5:len(input_link)]
-            """
                 
             r = requests.get(first_link + input_link,proxies=proxy_dict,timeout=2)
             text = r.text
