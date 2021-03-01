@@ -25,6 +25,7 @@ def bypass(query,query2):
 
     input_link = query + '/' + query2
     new_link = "None"
+    start_time = time.time()
     while bypassed == False and times_tried < 2:
         times_tried = times_tried + 1
 
@@ -49,7 +50,7 @@ def bypass(query,query2):
                         "ftp"   : ftp_proxy
                     }
 
-                    response = requests.get('https://www.google.com/', proxies = proxy_dict,timeout = 2)
+                    response = requests.get('https://www.google.com/', proxies = proxy_dict,timeout = 1)
                     break
                 except requests.exceptions.ProxyError:
                     print('Proxy error')
