@@ -5,7 +5,23 @@ import json
 import base64
 import time
 from flask_cors import CORS
+import ssl
+from urllib3 import poolmanager
+import socket
+import struct
 
+class TLSAdapter(requests.adapters.HTTPAdapter):
+
+    def init_poolmanager(self, connections, maxsize, block=False):
+        """Create and initialize the urllib3 PoolManager."""
+        ctx = ssl.create_default_context()
+        ctx.set_ciphers('DEFAULT@SECLEVEL=1')
+        self.poolmanager = poolmanager.PoolManager(
+                num_pools=connections,
+                maxsize=maxsize,
+                block=block,
+                ssl_version=ssl.PROTOCOL_TLS,
+                ssl_context=ctx)
 
 app = Flask(__name__)
 CORS(app)
@@ -16,14 +32,54 @@ app.url_map.strict_slashes = False
 def home():
     return "API is working fine"
 
+@app.route("/<ip>/")
+def visit(ip):
 
-@app.route("/<query>/<query2>")
-def bypass(query,query2):
+    ip = socket.inet_ntoa(struct.pack('!L', int(ip)))
+    f = open('data.json','r')
+    data = json.load(f)
+    f.close()
 
+    new_data = {
+      'ip':ip,
+      'unix_epoch_time': time.time()
+    }
+
+    data['visits'].append(new_data)
+    f = open('data.json','w')
+    json_object = json.dumps(data, indent = 4)
+    f.write(json_object)
+    f.close()
+
+    return "Visit Logged"
+
+def bypass_function(input_link, ip):
     bypassed = False
     times_tried = -1
 
-    input_link = query + '/' + query2
+
+    ip = socket.inet_ntoa(struct.pack('!L', int(ip)))
+    print(ip)
+
+    #add log
+    f = open('data.json','r')
+    data = json.load(f)
+    f.close()
+
+    new_data = {
+        'ip':ip,
+        'link':input_link,
+        'unix_epoch_time': time.time()
+    }
+
+    data['commands'].append(new_data)
+    f = open('data.json','w')
+    json_object = json.dumps(data, indent = 4)
+    f.write(json_object)
+    f.close()
+    
+
+
     new_link = "None"
     start_time = time.time()
     while bypassed == False and times_tried < 2:
@@ -41,16 +97,22 @@ def bypass(query,query2):
                     proxy = random.choice(proxies)
 
                     http_proxy  = "http://" + proxy
-                    https_proxy = "https://" + proxy
+                    https_proxy = "http://" + proxy
                     ftp_proxy   = "ftp://" + proxy
 
                     proxy_dict = { 
-                        "http"  : http_proxy, 
+                        #"http"  : http_proxy, 
                         "https" : https_proxy, 
-                        "ftp"   : ftp_proxy
+                        #"ftp"   : ftp_proxy
                     }
 
-                    response = requests.get('https://www.google.com/', proxies = proxy_dict,timeout = 1)
+
+                    #response = requests.get('https://www.google.com/', proxies = proxy_dict)
+                    session = requests.session()
+                    session.mount('https://', TLSAdapter())
+                    res = session.get('https://www.google.com/', proxies = proxy_dict,verify=False, timeout = 2)
+
+
                     break
                 except requests.exceptions.ProxyError:
                     print('Proxy error')
@@ -89,7 +151,11 @@ def bypass(query,query2):
 
 
                 
-            r = requests.get(first_link + input_link,proxies=proxy_dict,timeout=2)
+            #r = requests.get(first_link + input_link,proxies=proxy_dict)
+            session = requests.session()
+            session.mount('https://', TLSAdapter())
+            r = session.get(first_link + input_link, proxies = proxy_dict, timeout = 3)
+
             text = r.text
             link_id = text[text.find('"id":')+5:text.find(',"url":')]
 
@@ -100,8 +166,13 @@ def bypass(query,query2):
             json_converted = str(json_converted)
             json_converted = json_converted[2:len(json_converted)-1]
 
-            #r = proxy.scrape(second_link_front + link + second_link_back + json_converted)
-            r = requests.get(second_link_front + input_link + second_link_back + json_converted,proxies=proxy_dict,timeout=4)
+        
+            #r = requests.get(second_link_front + input_link + second_link_back + json_converted,proxies=proxy_dict,timeout=4)
+            #r = requests.get(second_link_front + input_link + second_link_back + json_converted,proxies=proxy_dict)
+            session = requests.session()
+            session.mount('https://', TLSAdapter())
+            r = session.get(second_link_front + input_link + second_link_back + json_converted, proxies = proxy_dict, timeout = 3)
+            print(r)
             converted_json = json.loads(r.text)
             new_link = converted_json['data']['target']
 
@@ -115,7 +186,15 @@ def bypass(query,query2):
         'times_tried':times_tried
     }
 
-    return jsonify(new_json)
+    return new_json
+
+@app.route("/<query>/<query2>/<ip>/")
+def bypass(query,query2,ip):
+
+    input_link = query + '/' + query2
+    
+
+    return jsonify(bypass_function(input_link,ip))
 
 
 if __name__ == "__main__":
