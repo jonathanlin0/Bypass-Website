@@ -30,7 +30,21 @@ app.url_map.strict_slashes = False
 
 @app.route("/")
 def home():
-    return "API is working fine"
+    return "API is online. Contact J_X for questions at https://discord.gg/8uterAf"
+
+@app.route("/stats/")
+def stats():
+    f = open('data.json','r')
+    data = json.load(f)
+    f.close()
+
+    new_json = {
+        'total_sessions': len(data['visits']),
+        'total_bypasses': len(data['commands'])
+    }
+    
+    return jsonify(new_json)
+
 
 @app.route("/<ip>/")
 def visit(ip):
@@ -45,6 +59,16 @@ def visit(ip):
       'unix_epoch_time': time.time()
     }
 
+    for x in range(2):
+        try:
+            r = requests.get('http://ip-api.com/json/' + str(ip))
+            ip_data = json.loads(r.text)
+            for key in ip_data.keys():
+                new_data[key] = ip_data[key]
+            break
+        except:
+            print('IP info retrieval failed. Try ' + str(x))
+
     data['visits'].append(new_data)
     f = open('data.json','w')
     json_object = json.dumps(data, indent = 4)
@@ -56,32 +80,15 @@ def visit(ip):
 def bypass_function(input_link, ip):
     bypassed = False
     times_tried = -1
-
+    start_time = time.time()
 
     ip = socket.inet_ntoa(struct.pack('!L', int(ip)))
     print(ip)
 
-    #add log
-    f = open('data.json','r')
-    data = json.load(f)
-    f.close()
-
-    new_data = {
-        'ip':ip,
-        'link':input_link,
-        'unix_epoch_time': time.time()
-    }
-
-    data['commands'].append(new_data)
-    f = open('data.json','w')
-    json_object = json.dumps(data, indent = 4)
-    f.write(json_object)
-    f.close()
+    
     
 
-
-    new_link = "None"
-    start_time = time.time()
+    new_link = "Your link is either dead or an invalid format. It could not be passed after using multiple proxies."
     while bypassed == False and times_tried < 2:
         times_tried = times_tried + 1
 
@@ -116,32 +123,26 @@ def bypass_function(input_link, ip):
                     break
                 except requests.exceptions.ProxyError:
                     print('Proxy error')
-                    proxies.remove(proxy)
-                    proxy_removed = True
+                    if len(proxies) > 15:
+                        proxies.remove(proxy)
+                        proxy_removed = True
                 except requests.exceptions.ConnectTimeout:
                     print('Connect error')
-                    proxies.remove(proxy)
-                    proxy_removed = True
+                    if len(proxies) > 15:
+                        proxies.remove(proxy)
+                        proxy_removed = True
                 except requests.exceptions.Timeout:
                     print('Timeout error')
-                    proxies.remove(proxy)
-                    proxy_removed = True
+                    if len(proxies) > 15:
+                        proxies.remove(proxy)
+                        proxy_removed = True
                 except Exception as e:
                     print(e)
-                    proxies.remove(proxy)
-                    proxy_removed = True
+                    if len(proxies) > 15:
+                        proxies.remove(proxy)
+                        proxy_removed = True
 
-            if proxy_removed == True:
-                out = ''
-
-                last = proxies[len(proxies)-1]
-                proxies.remove(last)
-                for temp in proxies:
-                    out = out + temp + '\n'
-                out = out + last
-                f = open('proxies.txt','w')
-                f.write(out)
-                f.close()
+            
                 
             first_link = 'https://publisher.linkvertise.com/api/v1/redirect/link/static/'
 
@@ -173,8 +174,25 @@ def bypass_function(input_link, ip):
             session.mount('https://', TLSAdapter())
             r = session.get(second_link_front + input_link + second_link_back + json_converted, proxies = proxy_dict, timeout = 3)
             print(r)
+            if '401' in str(r):
+                print('401 error')
+                if len(proxies) > 15:
+                    proxies.remove(proxy)
+                    proxy_removed = True
             converted_json = json.loads(r.text)
             new_link = converted_json['data']['target']
+
+            if proxy_removed == True:
+                out = ''
+
+                last = proxies[len(proxies)-1]
+                proxies.remove(last)
+                for temp in proxies:
+                    out = out + temp + '\n'
+                out = out + last
+                f = open('proxies.txt','w')
+                f.write(out)
+                f.close()
 
             bypassed = True
         except:
@@ -186,13 +204,37 @@ def bypass_function(input_link, ip):
         'times_tried':times_tried
     }
 
+    #add log
+    f = open('data.json','r')
+    data = json.load(f)
+    f.close()
+
+    new_data = {
+        'ip':ip,
+        'link':input_link,
+        'unix_epoch_time': time.time(),
+        'time_elapsed':time.time()-start_time
+    }
+
+    data['commands'].append(new_data)
+    f = open('data.json','w')
+    json_object = json.dumps(data, indent = 4)
+    f.write(json_object)
+    f.close()
+
     return new_json
 
 @app.route("/<query>/<query2>/<ip>/")
 def bypass(query,query2,ip):
+  
 
     input_link = query + '/' + query2
-    
+
+    ''''
+    site_down = {
+        'new_link':'Site down for a few hours as proxies are being replaced. Please join the discord server for updates'
+    }
+    return jsonify(site_down)'''
 
     return jsonify(bypass_function(input_link,ip))
 
