@@ -38,7 +38,14 @@ def stats():
     data = json.load(f)
     f.close()
 
+    unique_ips = []
+    for ip in data['visits']:
+        if ip['ip'] not in unique_ips:
+            unique_ips.append(ip['ip'])
+    
+
     new_json = {
+        'unique_visitors':len(unique_ips),
         'total_sessions': len(data['visits']),
         'total_bypasses': len(data['commands'])
     }
@@ -78,6 +85,11 @@ def visit(ip):
     return "Visit Logged"
 
 def bypass_function(input_link, ip):
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 13_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.1 Mobile/15E148 Safari/604.1"
+    }
+
     bypassed = False
     times_tried = -1
     start_time = time.time()
@@ -85,7 +97,9 @@ def bypass_function(input_link, ip):
     ip = socket.inet_ntoa(struct.pack('!L', int(ip)))
     print(ip)
 
-    
+    headers = {
+        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 13_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.1 Mobile/15E148 Safari/604.1"
+    }
     
 
     new_link = "Your link is either dead or an invalid format. It could not be passed after using multiple proxies."
@@ -152,7 +166,7 @@ def bypass_function(input_link, ip):
 
 
                 
-            #r = requests.get(first_link + input_link,proxies=proxy_dict)
+            r = requests.get(first_link + input_link,proxies=proxy_dict)
             session = requests.session()
             session.mount('https://', TLSAdapter())
             r = session.get(first_link + input_link, proxies = proxy_dict, timeout = 3)
@@ -172,8 +186,9 @@ def bypass_function(input_link, ip):
             #r = requests.get(second_link_front + input_link + second_link_back + json_converted,proxies=proxy_dict)
             session = requests.session()
             session.mount('https://', TLSAdapter())
-            r = session.get(second_link_front + input_link + second_link_back + json_converted, proxies = proxy_dict, timeout = 3)
+            r = session.post(second_link_front + input_link + second_link_back + json_converted, proxies = proxy_dict, timeout = 3, headers = headers)
             print(r)
+            print(r.text)
             if '401' in str(r):
                 print('401 error')
                 if len(proxies) > 15:
@@ -230,11 +245,34 @@ def bypass(query,query2,ip):
 
     input_link = query + '/' + query2
 
-    ''''
-    site_down = {
-        'new_link':'Site down for a few hours as proxies are being replaced. Please join the discord server for updates'
-    }
-    return jsonify(site_down)'''
+    #error message
+    site_down = False
+    if site_down == True:
+        ip = socket.inet_ntoa(struct.pack('!L', int(ip)))
+
+        #add log
+        f = open('data.json','r')
+        data = json.load(f)
+        f.close()
+
+        new_data = {
+            'ip':ip,
+            'link':input_link,
+            'unix_epoch_time': time.time(),
+            'time_elapsed':0
+        }
+
+        data['commands'].append(new_data)
+        f = open('data.json','w')
+        json_object = json.dumps(data, indent = 4)
+        f.write(json_object)
+        f.close()
+
+        site_down = {
+            'new_link':'There is currently an error with Linkvertise servers, so the bypass is temporarily down. Please join the discord server for updates'
+        }
+
+        return jsonify(site_down)
 
     return jsonify(bypass_function(input_link,ip))
 
