@@ -28,26 +28,38 @@ CORS(app)
 app.url_map.strict_slashes = False
 
 
+
 @app.route("/")
 def home():
     return "API is online. Contact J_X for questions at https://discord.gg/8uterAf"
 
 @app.route("/stats/")
 def stats():
-    f = open('data.json','r')
-    data = json.load(f)
+    f = open('visits.txt','r')
+    visits = f.read().splitlines()
     f.close()
 
-    unique_ips = []
-    for ip in data['visits']:
-        if ip['ip'] not in unique_ips:
-            unique_ips.append(ip['ip'])
-    
+    ips = []
+    for line in visits:
+        if 'query' in line:
+            ips.append(line)
 
+    unique_ips = []
+    
+    for ip in ips:
+        if ip not in unique_ips:
+            unique_ips.append(ip)
+    
+    f = open('bypasses.txt','r')
+    bypasses = f.read().splitlines()
+    f.close()
+    
+    # each visit it logged with 16 lines
+    # each bypass is logged with 4 lines
     new_json = {
         'unique_visitors':len(unique_ips),
-        'total_sessions': len(data['visits']),
-        'total_bypasses': len(data['commands'])
+        'total_sessions': int(len(visits)/16),
+        'total_bypasses': int(len(bypasses)/4)
     }
     
     return jsonify(new_json)
@@ -55,34 +67,40 @@ def stats():
 
 @app.route("/<ip>/")
 def visit(ip):
+    
+    try:
+        ip = socket.inet_ntoa(struct.pack('!L', int(ip)))
 
-    ip = socket.inet_ntoa(struct.pack('!L', int(ip)))
-    f = open('data.json','r')
-    data = json.load(f)
-    f.close()
+        new_data = {
+          'ip':ip,
+          'unix_epoch_time': time.time()
+        }
 
-    new_data = {
-      'ip':ip,
-      'unix_epoch_time': time.time()
-    }
+        for x in range(2):
+            try:
+                r = requests.get('http://ip-api.com/json/' + str(ip))
+                ip_data = json.loads(r.text)
+                for key in ip_data.keys():
+                    new_data[key] = ip_data[key]
+                break
+            except:
+                print('IP info retrieval failed. Try ' + str(x))
 
-    for x in range(2):
-        try:
-            r = requests.get('http://ip-api.com/json/' + str(ip))
-            ip_data = json.loads(r.text)
-            for key in ip_data.keys():
-                new_data[key] = ip_data[key]
-            break
-        except:
-            print('IP info retrieval failed. Try ' + str(x))
+        out = ''
+        for key in new_data.keys():
+            out = out + key + ':' + str(new_data[key]) + '\n'
+        out = out + '\n'
+        
+        f = open('visits.txt','a')
+        f.write(out)
+        f.close()
 
-    data['visits'].append(new_data)
-    f = open('data.json','w')
-    json_object = json.dumps(data, indent = 4)
-    f.write(json_object)
-    f.close()
+        return "Visit Logged"
+    except:
+        return "Visit log failed"
+    
+    return "Function Broken"
 
-    return "Visit Logged"
 
 def bypass_function(input_link, ip):
 
@@ -188,7 +206,6 @@ def bypass_function(input_link, ip):
             session.mount('https://', TLSAdapter())
             r = session.post(second_link_front + input_link + second_link_back + json_converted, proxies = proxy_dict, timeout = 3, headers = headers)
             print(r)
-            print(r.text)
             if '401' in str(r):
                 print('401 error')
                 if len(proxies) > 15:
@@ -213,29 +230,42 @@ def bypass_function(input_link, ip):
         except:
             print('Try: ' + str(times_tried))
 
-    new_json = {
-        'input_link': input_link,
-        'new_link': new_link,
-        'times_tried':times_tried
-    }
+    try:
+        new_json = {
+            'input_link': input_link,
+            'new_link': new_link,
+            'times_tried': (times_tried + 1)
+        }
+        
 
-    #add log
-    f = open('data.json','r')
-    data = json.load(f)
-    f.close()
+        new_data = {
+            'ip':ip,
+            'link':input_link,
+            'unix_epoch_time': time.time(),
+            'time_elapsed':time.time()-start_time
+        }
 
-    new_data = {
-        'ip':ip,
-        'link':input_link,
-        'unix_epoch_time': time.time(),
-        'time_elapsed':time.time()-start_time
-    }
 
-    data['commands'].append(new_data)
-    f = open('data.json','w')
-    json_object = json.dumps(data, indent = 4)
-    f.write(json_object)
-    f.close()
+        # add log
+        out = ''
+        for key in new_data.keys():
+            out = out + key + ':' + str(new_data[key]) + '\n'
+        out = out + '\n'
+        
+        f = open('bypasses.txt','a')
+        f.write(out)
+        f.close()
+
+    except:
+        print('--------------------------------')
+        print('')
+        print('')
+        print('')
+        print('    TEXT FILE BROKEN')
+        print('')
+        print('')
+        print('')
+        print('--------------------------------')
 
     return new_json
 
@@ -248,8 +278,14 @@ def bypass(query,query2,ip):
     #error message
     site_down = False
     if site_down == True:
+        
         ip = socket.inet_ntoa(struct.pack('!L', int(ip)))
 
+        f = open("temp.txt", "a")  # append mode 
+        f.write(input_link + "\n" + ip +'\n'+ str(time.time()) + '\n\n')
+        f.close() 
+
+        '''
         #add log
         f = open('data.json','r')
         data = json.load(f)
@@ -267,9 +303,10 @@ def bypass(query,query2,ip):
         json_object = json.dumps(data, indent = 4)
         f.write(json_object)
         f.close()
+        '''
 
         site_down = {
-            'new_link':'There is currently an error with Linkvertise servers, so the bypass is temporarily down. Please join the discord server for updates'
+            'new_link':'JOIN SERVER HERE FOR UPDATES: https://discord.gg/8uterAf'
         }
 
         return jsonify(site_down)
